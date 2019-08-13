@@ -1,0 +1,127 @@
+#pragma once
+#include <object_manager/mission_processor.h>
+#include <autoware_msgs/DetectedObject.h>
+#include <object_manager/ROIcheck.h>
+#include <geometry_msgs/PolygonStamped.h>
+
+enum {
+    SPAT_1= 0, SPAT_2, SPAT_3, N_SPAT
+};
+enum {
+    DECISION_NONE, DECISION_GO, DECISION_ESTOP
+};
+
+enum {SPAT_RED_LABEL = 0, SPAT_GREEN_LABEL = 1, SPAT_YELLOW_LABEL = 2};
+
+
+class TrafficSignProcessor : public MissionProcessor{
+public:
+    TrafficSignProcessor() : private_nh("~"){
+        if (!private_nh.getParam("spat_stop_area_x", spat_stop_area_x))
+            throw std::runtime_error("set spat_stop_area_x!");
+        if (!private_nh.getParam("braking_distance", braking_distance))
+            if (braking_distance < 0)
+                throw std::runtime_error("set valid braking_distance!");
+        if (!private_nh.getParam("brake_convergence_time", brake_convergence_time))
+            if (brake_convergence_time < 0)
+                throw std::runtime_error("set valid brake_convergence_time!");
+        if (!private_nh.getParam("decision_distance", decision_distance))
+            if (braking_distance < 0)
+                throw std::runtime_error("set valid decision_distance!");
+        
+        decision_state = DECISION_NONE;
+        current_spat = SPAT_1;//when mission started, the stop line's x coordinate is 
+        //below car's x coordinate.
+        bPassedAllStopline = false;
+
+        ROS_INFO("[MISSION 3] : %lf %lf", braking_distance, brake_convergence_time);
+    }
+
+    void processMission(AVCInterface& avc_interface,
+        const object_manager_msgs::combined msg){
+
+        auto& detectedObj = msg.obj_ary;
+        
+        //check if spat msg
+        bool isSpatMsg = false;
+        const std::vector<std::string> signal_names{"signal_0", "signal_1", "signal_2"};
+        auto n = signal_names.cbegin();
+        for(auto&& obj : detectedObj.objects){
+            if (obj.label == *n){
+                isSpatMsg = true;
+                break;
+            }
+            n++;
+        }
+
+        if (isSpatMsg == false)
+            return ;
+
+        //hard coded
+        const double x_cur = avc_interface.getCurpos().pose.position.x;
+        double dx = x_cur - spat_stop_area_x[current_spat];
+        ROS_WARN("[MISSION 3] dx : %lf", dx);
+                
+        //calc how far from stopline
+        bool estop = false;
+
+        if (!bPassedAllStopline){
+            switch(decision_state){
+            case DECISION_NONE:
+                if (dx > (braking_distance + 1)) break;    
+
+                if ((detectedObj.objects[current_spat].indicator_state == SPAT_GREEN_LABEL)
+                    && (detectedObj.objects[current_spat].score > (brake_convergence_time + 1))){
+                    ROS_WARN("[Mission 3] : DECISION_NONE - go");
+                    estop = false;
+                    decision_state = DECISION_GO;
+                } else{
+                    ROS_WARN("[Mission 3] : DECISION_NONE - not green label or not time");
+                    estop = true;
+                    decision_state = DECISION_ESTOP;
+                }
+                break;
+            case DECISION_GO:
+                if (dx < 0) {
+                    ROS_WARN("[Mission 3] : DECISION_GO - passed stop line");                
+                    decision_state = DECISION_NONE;
+                    current_spat++;
+                    if (current_spat > SPAT_3) bPassedAllStopline = true;
+                } else
+                    ROS_WARN("[Mission 3] : DECISION_GO - not passed stop line");                                
+
+                estop = false;
+                break;
+            case DECISION_ESTOP:
+                if (detectedObj.objects[current_spat].indicator_state == SPAT_GREEN_LABEL){
+                    ROS_WARN("[Mission 3] : DECISION_ESTOP - signal changed to GREEN");               
+                    estop = false;
+                    decision_state = DECISION_GO;
+                } else {
+                    estop = true; //red light is ongoing
+                    ROS_WARN("[Mission 3] : DECISION_ESTOP - signal is still RED");
+                }
+                break;
+            default : ROS_ERROR("impossible situation happened"); break;
+            }
+        }
+
+        avc_interface.enableEstop(estop);//if return true, we'll stop vehicle.
+        avc_interface.publish();
+    }
+
+    virtual void set_param(object_manager::ObjectManagerConfig &config)
+    { 
+    }
+private:
+    ros::NodeHandle private_nh, nh;
+
+    double braking_distance;
+    double brake_convergence_time;
+    double decision_distance;
+
+    std::vector<double> spat_stop_area_x;
+    int decision_state;
+    int current_spat;
+    bool bPassedAllStopline;
+};

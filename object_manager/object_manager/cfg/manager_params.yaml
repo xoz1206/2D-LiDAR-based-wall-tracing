@@ -1,0 +1,39 @@
+object_manager:
+    combined_obj_ary_topic_names: ["/detection/combined_objects", "/spat_info_combined", "/AMB_object"]
+    vision_idx: 0
+    spat_idx: 1
+    AMB_idx: 2    
+    
+    # polygons
+    show_poly: false
+    polygon_names: ["mission_none_poly", "pedestrian_poly", "traffic_sign_poly", "accident_vehicle_poly", "emergency_vehicle_poly"]
+    mission_none_poly: []
+    pedestrian_poly: [159.697, -196.695, 185.227, -160.318, 297.77, -222.071, 280.162, -257.166]
+    traffic_sign_poly: [-321.8, -160.957, 24.3253, -181.854, 75.9049, -60.5549, -43.1654, -36.4437, -307.542, -32.4161]
+    accident_vehicle_poly: [-512.823, -43.541, -410.975, -43.8235, -410.912, 22.6315, -503.897, 24.1338]
+    emergency_vehicle_poly: [-403.32, -40.8276, 27.2968, -26.5862, 25.3314, 21.9943, -398.567, 26.411]
+    
+    # mission 3 params
+    spat_stop_area_x: [-28, -135, -272]
+    ###params1
+    brake_convergence_time: 2.49
+    braking_distance : 5
+    ###params2
+    decision_distance: 100
+    max_speed: 11 #40 kph
+    mission_end_speed: 11
+    dist_margin: 5
+    time_margin: 3
+
+
+    # mission 5 params
+    emergency_critical_section: [-325.598, -1.13492, -326.014, 6.63827, -22.9755, 6.11816, -23.5374, -1.55422]
+
+    #obstacles debug member
+    predefined_polygons: [-467.253, -15.0654, -400.819, -15.1934, -99999999
+        ,-503.198, -9.70501, -439.557, -5.7491, -99999999
+        ,-355.639, 4.19814, -60.2589, 3.84352, -99999999]
+                            
+       # right dorang
+       # barrier
+       # e_vehicle_left

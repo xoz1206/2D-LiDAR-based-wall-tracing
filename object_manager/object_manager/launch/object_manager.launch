@@ -1,0 +1,5 @@
+<launch>
+    <rosparam command="load" file="$(find object_manager)/cfg/manager_params.yaml" />
+    <!--<node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure"/>-->
+    <node pkg="object_manager" type="object_manager" name="object_manager" output="screen"/>
+</launch>
